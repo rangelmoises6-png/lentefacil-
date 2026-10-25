@@ -1,0 +1,23 @@
+{
+  "name": "LenteFácil - Escáner de Objetos",
+  "short_name": "LenteFácil",
+  "description": "Identifica cualquier objeto, ropa o repuesto con una foto y encuentra dónde comprarlo.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3659/3659899.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3659/3659899.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
