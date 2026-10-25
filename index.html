@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <title>LenteFácil - Escáner Inteligente</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3659/3659899.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background-color: #020617; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
+    .scan-line {
+      position: absolute; width: 100%; height: 4px;
+      background: linear-gradient(90deg, transparent, #38bdf8, transparent);
+      box-shadow: 0 0 12px #38bdf8;
+      animation: scan 2s infinite linear;
+    }
+    @keyframes scan { 0% { top: 5%; } 50% { top: 92%; } 100% { top: 5%; } }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between max-w-md mx-auto relative select-none">
+
+  <!-- Barra Superior -->
+  <header class="p-3 bg-slate-900/90 backdrop-blur border-b border-slate-800 flex items-center justify-between sticky top-0 z-30">
+    <div class="flex items-center gap-2">
+      <span class="text-2xl">🔍</span>
+      <div>
+        <h1 class="font-bold text-lg leading-none text-sky-400">LenteFácil</h1>
+        <p class="text-[11px] text-slate-400">Toma una foto y descubre qué es</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <select id="countrySelect" class="bg-slate-800 text-xs text-white px-2 py-1.5 rounded-lg border border-slate-700">
+        <option value="com.ve">🇻🇪 VEN</option>
+        <option value="com.co">🇨🇴 COL</option>
+        <option value="com.mx">🇲🇽 MEX</option>
+        <option value="com.ar">🇦🇷 ARG</option>
+        <option value="cl">🇨🇱 CHI</option>
+        <option value="com.pe">🇵🇪 PER</option>
+      </select>
+      <button onclick="toggleModal(true)" id="keyBtn" class="bg-slate-800 hover:bg-slate-700 text-xs px-2.5 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1">
+        ⚙️ <span id="keyStatus">Llave IA</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Visor de Cámara / Imagen -->
+  <main class="flex-1 flex flex-col items-center justify-center p-3 relative">
+    <div class="relative w-full aspect-[3/4] max-h-[62vh] bg-slate-900 rounded-3xl overflow-hidden border-2 border-slate-800 shadow-2xl flex items-center justify-center">
+      
+      <!-- Video en vivo -->
+      <video id="cameraStream" autoplay playsinline muted class="w-full h-full object-cover hidden"></video>
+      
+      <!-- Imagen capturada -->
+      <img id="capturedImage" class="w-full h-full object-contain hidden bg-black" alt="Captura" />
+
+      <!-- Estado Inicial -->
+      <div id="cameraPlaceholder" class="text-center p-6 flex flex-col items-center gap-4">
+        <div class="w-20 h-20 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-4xl">
+          📷
+        </div>
+        <div>
+          <h2 class="text-lg font-bold text-white">Apunta a cualquier objeto</h2>
+          <p class="text-sm text-slate-400 mt-1">Zapatos, ropa, medicinas, plantas o repuestos</p>
+        </div>
+        <button onclick="startCamera()" class="mt-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold px-6 py-3 rounded-2xl shadow-lg transition active:scale-95">
+          Activar Cámara
+        </button>
+      </div>
+
+      <!-- Animación de escaneo -->
+      <div id="scanOverlay" class=" inset-0 bg-slate-950/60 backdrop-blur-[2px] flex flex-col items-center justify-center hidden z-20">
+        <div class="scan-line"></div>
+        <div class="bg-slate-900/90 px-5 py-3 rounded-2xl border border-sky-500/40 text-center shadow-xl">
+          <p class="text-sky-400 font-bold animate-pulse text-base">Analizando objeto...</p>
+          <p class="text-xs text-slate-300 mt-0.5">Buscando nombre y precio</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controles Principales -->
+    <div class="w-full mt-4 flex items-center justify-around px-2">
+      <!-- Subir desde Galería -->
+      <label class="flex flex-col items-center gap-1 cursor-pointer bg-slate-800/80 hover:bg-slate-800 px-4 py-2.5 rounded-2xl border border-slate-700 active:scale-95 transition">
+        <span class="text-xl">🖼️</span>
+        <span class="text-xs font-medium text-slate-200">Subir Foto</span>
+        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+      </label>
+
+      <!-- Botón Gigante de Captura -->
+      <button onclick="takePhoto()" class="w-20 h-20 rounded-full bg-white p-1.5 shadow-[0_0_25px_rgba(56,189,248,0.5)] active:scale-90 transition flex items-center justify-center">
+        <div class="w-full h-full rounded-full border-4 border-slate-900 bg-sky-400 flex items-center justify-center text-2xl">
+          📸
+        </div>
+      </button>
+
+      <!-- Reiniciar Cámara -->
+      <button onclick="startCamera()" class="flex flex-col items-center gap-1 bg-slate-800/80 hover:bg-slate-800 px-4 py-2.5 rounded-2xl border border-slate-700 active:scale-95 transition">
+        <span class="text-xl">🔄</span>
+        <span class="text-xs font-medium text-slate-200">Nueva Foto</span>
+      </button>
+    </div>
+  </main>
+
+  <!-- Tarjeta Inteligente de Resultados (Bottom Sheet) -->
+  <section id="resultSheet" class="fixed inset-x-0 bottom-0 max-w-md mx-auto bg-slate-900 border-t-2 border-sky-500/40 rounded-t-3xl p-5 shadow-[0_-10px_40px_rgba(0,0,0,0.8)] transform translate-y-full transition-transform duration-300 z-40 max-h-[82vh] overflow-y-auto">
+    <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-3"></div>
+    
+    <div class="flex justify-between items-start gap-2">
+      <div>
+        <span id="resCategory" class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-500/30">Categoría</span>
+        <h2 id="resTitle" class="text-2xl font-extrabold text-white mt-1.5 leading-tight">Nombre del Objeto</h2>
+      </div>
+      <button onclick="closeResult()" class="bg-slate-800 text-slate-300 rounded-full w-9 h-9 flex items-center justify-center text-lg font-bold">✕</button>
+    </div>
+
+    <p id="resDesc" class="text-slate-200 text-base mt-3 leading-relaxed bg-slate-800/60 p-3.5 rounded-2xl border border-slate-700/80"></p>
+
+    <div class="mt-3 flex items-center justify-between bg-emerald-950/40 border border-emerald-500/30 px-3.5 py-2.5 rounded-xl">
+      <span class="text-xs text-emerald-300 font-medium">💰 Precio referencial:</span>
+      <span id="resPrice" class="text-base font-extrabold text-emerald-400">$0 - $0</span>
+    </div>
+
+    <!-- Botón de Voz Grande -->
+    <button onclick="speakCurrentResult()" class="w-full mt-3 bg-sky-600 hover:bg-sky-500 active:scale-98 text-white font-bold py-3 rounded-2xl flex items-center justify-center gap-2 shadow-lg text-base">
+      🔊 Escuchar Explicación en Voz Alta
+    </button>
+
+    <!-- Botones de Compras y Ayuda -->
+    <div class="mt-4 space-y-2.5">
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">¿Dónde conseguirlo o compartirlo?</p>
+      
+      <a id="btnMercadoLibre" href="#" target="_blank" class="w-full bg-[#FFE600] hover:bg-yellow-300 text-slate-950 font-extrabold py-3.5 px-4 rounded-2xl flex items-center justify-between shadow-md text-base">
+        <span class="flex items-center gap-2">🤝 Ver en Mercado Libre</span>
+        <span>➔</span>
+      </a>
+
+      <div class="grid grid-cols-2 gap-2.5">
+        <a id="btnAmazon" href="#" target="_blank" class="bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 px-3 rounded-2xl flex items-center justify-center gap-1.5 text-sm shadow">
+          📦 Amazon
+        </a>
+        <a id="btnGoogle" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-3 rounded-2xl flex items-center justify-center gap-1.5 text-sm shadow">
+          🌐 Tiendas Cerca
+        </a>
+      </div>
+
+      <a id="btnWhatsapp" href="#" target="_blank" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-md text-base">
+        💬 Enviar ficha a un familiar por WhatsApp
+      </a>
+    </div>
+  </section>
+
+  <!-- Modal para guardar la API Key de Gemini -->
+  <div id="apiModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl p-5 w-full max-w-sm shadow-2xl">
+      <h3 class="text-lg font-bold text-white flex items-center gap-2">🔑 Configurar Llave Gratuita</h3>
+      <p class="text-xs text-slate-300 mt-2 leading-relaxed">
+        Pega aquí tu API Key gratuita de <b>Google AI Studio</b>. Se guardará únicamente en la memoria interna de tu teléfono.
+      </p>
+      <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full mt-3 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-sky-400">
+      
+      <div class="mt-4 flex gap-2">
+        <button onclick="saveApiKey()" class="flex-1 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold py-2.5 rounded-xl text-sm">
+          Guardar en mi teléfono
+        </button>
+        <button onclick="toggleModal(false)" class="bg-slate-800 text-slate-300 px-4 py-2.5 rounded-xl text-sm">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="hiddenCanvas" class="hidden"></canvas>
+
+  <script>
+    let stream = null;
+    let lastSpokenText = "";
+
+    // Registrar Service Worker para PWA / APK
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    // Verificar si ya hay API Key guardada
+    function checkSavedKey() {
+      const key = localStorage.getItem('lentefacil_gemini_key');
+      const statusEl = document.getElementById('keyStatus');
+      if (key && key.startsWith('AIza')) {
+        statusEl.textContent = 'Lista ✅';
+        document.getElementById('apiKeyInput').value = key;
+      } else {
+        statusEl.textContent = 'Sin Llave ⚠️';
+      }
+    }
+    checkSavedKey();
+
+    function toggleModal(show) {
+      document.getElementById('apiModal').classList.toggle('hidden', !show);
+    }
+
+    function saveApiKey() {
+      const val = document.getElementById('apiKeyInput').value.trim();
+      if (!val) return alert('Por favor pega tu código API Key que empieza por AIza...');
+      localStorage.setItem('lentefacil_gemini_key', val);
+      checkSavedKey();
+      toggleModal(false);
+      alert('¡Llave guardada en tu teléfono! Ya puedes tomar fotos.');
+    }
+
+    // Iniciar cámara trasera
+    async function startCamera() {
+      closeResult();
+      const video = document.getElementById('cameraStream');
+      const img = document.getElementById('capturedImage');
+      const placeholder = document.getElementById('cameraPlaceholder');
+
+      try {
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+        }
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false
+        });
+        video.srcObject = stream;
+        video.classList.remove('hidden');
+        img.classList.add('hidden');
+        placeholder.classList.add('hidden');
+      } catch (err) {
+        alert('No se pudo abrir la cámara directamente. Puedes usar el botón "Subir Foto" abajo a la izquierda.');
+      }
+    }
+
+    // Tomar foto del video en vivo
+    function takePhoto() {
+      const video = document.getElementById('cameraStream');
+      if (video.classList.contains('hidden')) {
+        startCamera();
+        return;
+      }
+      const canvas = document.getElementById('hiddenCanvas');
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      processImageBase64(dataUrl);
+    }
+
+    // Subir foto desde galería o cámara nativa de Android
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        processImageBase64(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Procesar imagen con Gemini 2.5 Flash
+    async function processImageBase64(dataUrl) {
+      const apiKey = localStorage.getItem('lentefacil_gemini_key');
+      if (!apiKey) {
+        toggleModal(true);
+        return;
+      }
+
+      const video = document.getElementById('cameraStream');
+      const img = document.getElementById('capturedImage');
+      const placeholder = document.getElementById('cameraPlaceholder');
+      const overlay = document.getElementById('scanOverlay');
+
+      video.classList.add('hidden');
+      placeholder.classList.add('hidden');
+      img.src = dataUrl;
+      img.classList.remove('hidden');
+      overlay.classList.remove('hidden');
+
+      const base64Clean = dataUrl.split(',')[1];
+
+      const prompt = `Analiza esta imagen y responde ÚNICAMENTE con un objeto JSON válido (sin bloques markdown) con esta estructura exacta en español sencillo y claro pensado para todo público:
+      {
+        "nombre": "Nombre claro y específico del producto u objeto (ej. Zapatos Deportivos Nike Air Monarch)",
+        "categoria": "Categoría corta (ej. Calzado, Herramienta, Salud, Planta)",
+        "descripcion": "Explicación muy sencilla en 2 oraciones de qué es, para qué sirve o cómo se usa.",
+        "precio_estimado": "Rango en dólares (ej. $25 - $45 USD)",
+        "busqueda_comercial": "Palabras exactas para comprarlo en Mercado Libre (ej. zapatos nike air monarch blancos)"
+      }`;
+
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: "image/jpeg", data: base64Clean } }
+              ]
+            }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+
+        const data = await response.json();
+        overlay.classList.add('hidden');
+
+        if (data.error) {
+          alert("Error con la API Key: " + data.error.message);
+          return;
+        }
+
+        const rawText = data.candidates[0].content.parts[0].text;
+        const info = JSON.parse(rawText);
+        showResult(info);
+
+      } catch (error) {
+        overlay.classList.add('hidden');
+        alert("Ocurrió un error al conectar con internet. Intenta de nuevo.");
+      }
+    }
+
+    function showResult(info) {
+      document.getElementById('resCategory').textContent = info.categoria || 'Objeto';
+      document.getElementById('resTitle').textContent = info.nombre || 'Objeto Identificado';
+      document.getElementById('resDesc').textContent = info.descripcion || '';
+      document.getElementById('resPrice').textContent = info.precio_estimado || 'Consultar en tienda';
+
+      const query = encodeURIComponent(info.busqueda_comercial || info.nombre);
+      const queryDash = (info.busqueda_comercial || info.nombre).trim().replace(/\s+/g, '-').toLowerCase();
+      const domain = document.getElementById('countrySelect').value;
+
+      document.getElementById('btnMercadoLibre').href = `https://listado.mercadolibre.${domain}/${encodeURIComponent(queryDash)}`;
+      document.getElementById('btnAmazon').href = `https://www.amazon.com/s?k=${query}`;
+      document.getElementById('btnGoogle').href = `https://www.google.com/search?tbm=shop&q=${query}`;
+
+      const waText = encodeURIComponent(`Hola, acabo de escanear esto con LenteFácil:\n\n*${info.nombre}*\n${info.descripcion}\n💰 Precio aprox: ${info.precio_estimado}\n\nMira dónde lo venden: https://listado.mercadolibre.${domain}/${encodeURIComponent(queryDash)}`);
+      document.getElementById('btnWhatsapp').href = `https://wa.me/?text=${waText}`;
+
+      document.getElementById('resultSheet').classList.remove('translate-y-full');
+
+      lastSpokenText = `${info.nombre}. ${info.descripcion}. Su precio aproximado es de ${info.precio_estimado}. Toca el botón amarillo abajo para verlo en Mercado Libre.`;
+      speakCurrentResult();
+    }
+
+    function speakCurrentResult() {
+      if (!('speechSynthesis' in window) || !lastSpokenText) return;
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(lastSpokenText);
+      utterance.lang = 'es-ES';
+      utterance.rate = 0.98;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function closeResult() {
+      window.speechSynthesis.cancel();
+      document.getElementById('resultSheet').classList.add('translate-y-full');
+    }
+  </script>
+</body>
+</html>
